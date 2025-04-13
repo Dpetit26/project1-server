@@ -1,0 +1,79 @@
+import socket
+import random
+
+# Character mapping for shift cipher
+CHAR_MAP = {
+    'A': 0, 'B': 1, 'C': 2, 'D': 3, 'E': 4, 'F': 5, 'G': 6, 'H': 7, 'I': 8, 'J': 9,
+    'K': 10, 'L': 11, 'M': 12, 'N': 13, 'O': 14, 'P': 15, 'Q': 16, 'R': 17, 'S': 18,
+    'T': 19, 'U': 20, 'V': 21, 'W': 22, 'X': 23, 'Y': 24, 'Z': 25,
+    'a': 26, 'b': 27, 'c': 28, 'd': 29, 'e': 30, 'f': 31, 'g': 32, 'h': 33, 'i': 34,
+    'j': 35, 'k': 36, 'l': 37, 'm': 38, 'n': 39, 'o': 40, 'p': 41, 'q': 42, 'r': 43,
+    's': 44, 't': 45, 'u': 46, 'v': 47, 'w': 48, 'x': 49, 'y': 50, 'z': 51
+}
+
+REVERSE_MAP = {v: k for k, v in CHAR_MAP.items()}
+
+# Constants
+HOST = '127.0.0.1'
+PORT = 65432
+a = 250
+b = 479
+
+
+def calculate_k_prime(k):
+    return (a * k + b) % 52
+
+
+def encrypt(plaintext, k_prime):
+    ciphertext = []
+    for char in plaintext:
+        if char in CHAR_MAP:
+            x = CHAR_MAP[char]
+            y = (x + k_prime) % 52
+            ciphertext.append(REVERSE_MAP[y])
+        else:
+            ciphertext.append(char)  # Leave non-alphabetic characters unchanged
+    return ''.join(ciphertext)
+
+
+def generate_valid_k():
+    while True:
+        k = random.randint(1, 1000000)
+        k_prime = calculate_k_prime(k)
+        if k_prime != 0:
+            return k, k_prime
+
+
+def main():
+    # Step 2-4: Generate valid k and k'
+    k, k_prime = generate_valid_k()
+    print(f"Generated k: {k}, calculated k': {k_prime}")
+
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.connect((HOST, PORT))
+
+        # Step 5: Send k to server
+        s.sendall(str(k).encode())
+
+        while True:
+            # Get user input
+            plaintext = input("Enter message to send (or 'quit' to exit): ")
+            if plaintext.lower() == 'quit':
+                break
+
+            # Step 9: Encrypt plaintext
+            ciphertext = encrypt(plaintext, k_prime)
+            print(f"Client display: (plaintext: {plaintext}, ciphertext: {ciphertext})")
+
+            # Send ciphertext to server
+            s.sendall(ciphertext.encode())
+
+            # Wait for acknowledgement
+            ack = s.recv(1024).decode()
+            print(f"Server acknowledgement: {ack}")
+
+    print("Client shutting down")
+
+
+if __name__ == "__main__":
+    main()
